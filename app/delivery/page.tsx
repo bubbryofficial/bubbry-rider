@@ -278,8 +278,8 @@ export default function RiderDelivery() {
       const seen = new Set<string>(); const list: any[] = [];
       for (const o of data) {
         const key = o.group_id || o.id; if (seen.has(key)) continue; seen.add(key);
-        if (o.group_id) { const {data:gr} = await supabase.from("orders").select("id").eq("group_id",o.group_id).eq("status","out_for_delivery"); o.all_ids=(gr||[]).map((x:any)=>x.id); }
-        else o.all_ids=[o.id];
+        if (o.group_id) { const {data:gr} = await supabase.from("orders").select("id").eq("group_id",o.group_id).eq("status","out_for_delivery"); (o as any).all_ids=(gr||[]).map((x:any)=>x.id); }
+        else (o as any).all_ids=[o.id];
         list.push(o);
       }
       // Fetch customer phones
@@ -330,8 +330,8 @@ export default function RiderDelivery() {
 
         // Add when newly assigned (out_for_delivery)
         if (n?.status !== "out_for_delivery") return;
-        if (n.group_id) { const {data:gr} = await supabase.from("orders").select("id").eq("group_id",n.group_id); n.all_ids=(gr||[]).map((x:any)=>x.id); }
-        else n.all_ids=[n.id];
+        if (n.group_id) { const {data:gr} = await supabase.from("orders").select("id").eq("group_id",n.group_id); (n as any).all_ids=(gr||[]).map((x:any)=>x.id); }
+        else (n as any).all_ids=[n.id];
         // Deduplicate by group_id — prevents adding same group multiple times when multiple rows update
         const gKey = n.group_id || n.id;
         setOrders(prev => {
