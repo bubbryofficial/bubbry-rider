@@ -366,15 +366,15 @@ export default function RiderDelivery() {
               // Persist GPS to DB on every fix — customer track page polls this
               if (r?.id) {
                 // Write to riders table (requires last_lat, last_lng columns)
-                supabase.from("riders").update({ last_lat: lat, last_lng: lng }).eq("id", r.id).then(() => {}).catch(() => {});
+                try { await supabase.from("riders").update({ last_lat: lat, last_lng: lng }).eq("id", r.id); } catch(_) {}
                 // Also write to active order rows as rider_lat/rider_lng (fallback — always works)
                 const ao2 = activeOrderRef.current;
                 if (ao2?.all_ids?.length) {
                   for (const oid of ao2.all_ids) {
-                    supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", oid).then(()=>{}).catch(()=>{});
+                    try { await supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", oid); } catch(_) {}
                   }
                 } else if (ao2?.id) {
-                  supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", ao2.id).then(()=>{}).catch(()=>{});
+                  try { await supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", ao2.id); } catch(_) {}
                 }
               }
             },
