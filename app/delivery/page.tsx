@@ -361,21 +361,18 @@ export default function RiderDelivery() {
               // Also broadcast to active order channel if exists
               const ao = activeOrderRef.current;
               if (ao?.id) {
-                supabase.channel(`rider-${ao.id}`).send({type:"broadcast",event:"pos",payload:{lat,lng}}).catch(()=>{});
+                supabase.channel(`rider-${ao.id}`).send({type:"broadcast",event:"pos",payload:{lat,lng}});
               }
-              // Persist GPS to DB on every fix — customer track page polls this
+              // Persist GPS to DB — fire and forget (no await needed)
               if (r?.id) {
-                // Write to riders table (requires last_lat, last_lng columns)
-                try { await supabase.from("riders").update({ last_lat: lat, last_lng: lng }).eq("id", r.id); } catch(_) {}
-                // Also write to active order rows as rider_lat/rider_lng (fallback — always works)
+                void supabase.from("riders").update({ last_lat: lat, last_lng: lng }).eq("id", r.id);
                 const ao2 = activeOrderRef.current;
-                if (ao2?.all_ids?.length) {
-                  for (const oid of ao2.all_ids) {
-                    try { await supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", oid); } catch(_) {}
-                  }
-                } else if (ao2?.id) {
-                  try { await supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", ao2.id); } catch(_) {}
-                }
+                const ids: string[] = (ao2 as any)?.all_ids?.length
+                  ? (ao2 as any).all_ids
+                  : ao2?.id ? [ao2.id] : [];
+                ids.forEach(oid => {
+                  void supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", oid);
+                });
               }
             },
             err => setGpsErr(err.code===1?"Location permission denied":"GPS error"),
