@@ -274,8 +274,8 @@ export default function RiderDelivery() {
       const seen = new Set<string>(); const list: any[] = [];
       for (const o of data) {
         const key = o.group_id || o.id; if (seen.has(key)) continue; seen.add(key);
-        if (o.group_id) { const {data:gr} = await supabase.from("orders").select("id").eq("group_id",o.group_id).eq("status","out_for_delivery"); o.all_ids=(gr||[]).map((x:any)=>x.id); }
-        else o.all_ids=[o.id];
+        if (o.group_id) { const {data:gr} = await supabase.from("orders").select("id").eq("group_id",o.group_id).eq("status","out_for_delivery"); (o as any).all_ids=(gr||[]).map((x:any)=>x.id); }
+        else (o as any).all_ids=[o.id];
         list.push(o);
       }
       // Fetch customer phones
@@ -326,8 +326,8 @@ export default function RiderDelivery() {
 
         // Add when newly assigned (out_for_delivery)
         if (n?.status !== "out_for_delivery") return;
-        if (n.group_id) { const {data:gr} = await supabase.from("orders").select("id").eq("group_id",n.group_id); n.all_ids=(gr||[]).map((x:any)=>x.id); }
-        else n.all_ids=[n.id];
+        if (n.group_id) { const {data:gr} = await supabase.from("orders").select("id").eq("group_id",n.group_id); (n as any).all_ids=(gr||[]).map((x:any)=>x.id); }
+        else (n as any).all_ids=[n.id];
         // Deduplicate by group_id — prevents adding same group multiple times when multiple rows update
         const gKey = n.group_id || n.id;
         setOrders(prev => {
@@ -362,15 +362,15 @@ export default function RiderDelivery() {
               // Persist GPS to DB on every fix — customer track page polls this
               if (r?.id) {
                 // Write to riders table (requires last_lat, last_lng columns)
-                supabase.from("riders").update({ last_lat: lat, last_lng: lng }).eq("id", r.id).then(() => {}).catch(() => {});
+                void supabase.from("riders").update({ last_lat: lat, last_lng: lng }).eq("id", r.id);
                 // Also write to active order rows as rider_lat/rider_lng (fallback — always works)
                 const ao2 = activeOrderRef.current;
-                if (ao2?.all_ids?.length) {
-                  for (const oid of ao2.all_ids) {
-                    supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", oid).then(()=>{}).catch(()=>{});
+                if ((ao2 as any)?.all_ids?.length) {
+                  for (const oid of (ao2 as any).all_ids) {
+                    void supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", oid);
                   }
                 } else if (ao2?.id) {
-                  supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", ao2.id).then(()=>{}).catch(()=>{});
+                  void supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", ao2.id);
                 }
               }
             },
@@ -489,7 +489,7 @@ export default function RiderDelivery() {
       if (!pe){const{data}=supabase.storage.from("product-images").getPublicUrl(`${base}_products.jpg`);pUrl=data.publicUrl;}
       const {error:ce}=await supabase.storage.from("product-images").upload(`${base}_customer.jpg`,cFile,{upsert:true,contentType:"image/jpeg"});
       if (!ce){const{data}=supabase.storage.from("product-images").getPublicUrl(`${base}_customer.jpg`);cUrl=data.publicUrl;}
-      for (const id of (order.all_ids||[order.id])) {
+      for (const id of ((order as any).all_ids||[order.id])) {
         await supabase.from("orders").update({status:"completed",delivery_otp_verified:true,handoff_photo:cUrl,product_photo:pUrl,completed_at:new Date().toISOString(),rider_id:rider?.id}).eq("id",id);
         // Stock already deducted when shopkeeper marked order ready
       }
