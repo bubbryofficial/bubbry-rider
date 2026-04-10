@@ -1,12 +1,8 @@
 "use client";
+import { supabase } from "../../lib/supabase";
 import { useEffect, useRef, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
@@ -278,8 +274,8 @@ export default function RiderDelivery() {
       const seen = new Set<string>(); const list: any[] = [];
       for (const o of data) {
         const key = o.group_id || o.id; if (seen.has(key)) continue; seen.add(key);
-        if (o.group_id) { const {data:gr} = await supabase.from("orders").select("id").eq("group_id",o.group_id).eq("status","out_for_delivery"); (o as any).all_ids=(gr||[]).map((x:any)=>x.id); }
-        else (o as any).all_ids=[o.id];
+        if (o.group_id) { const {data:gr} = await supabase.from("orders").select("id").eq("group_id",o.group_id).eq("status","out_for_delivery"); o.all_ids=(gr||[]).map((x:any)=>x.id); }
+        else o.all_ids=[o.id];
         list.push(o);
       }
       // Fetch customer phones
@@ -330,8 +326,8 @@ export default function RiderDelivery() {
 
         // Add when newly assigned (out_for_delivery)
         if (n?.status !== "out_for_delivery") return;
-        if (n.group_id) { const {data:gr} = await supabase.from("orders").select("id").eq("group_id",n.group_id); (n as any).all_ids=(gr||[]).map((x:any)=>x.id); }
-        else (n as any).all_ids=[n.id];
+        if (n.group_id) { const {data:gr} = await supabase.from("orders").select("id").eq("group_id",n.group_id); n.all_ids=(gr||[]).map((x:any)=>x.id); }
+        else n.all_ids=[n.id];
         // Deduplicate by group_id — prevents adding same group multiple times when multiple rows update
         const gKey = n.group_id || n.id;
         setOrders(prev => {
@@ -361,18 +357,21 @@ export default function RiderDelivery() {
               // Also broadcast to active order channel if exists
               const ao = activeOrderRef.current;
               if (ao?.id) {
-                supabase.channel(`rider-${ao.id}`).send({type:"broadcast",event:"pos",payload:{lat,lng}});
+                supabase.channel(`rider-${ao.id}`).send({type:"broadcast",event:"pos",payload:{lat,lng}}).catch(()=>{});
               }
-              // Persist GPS to DB — fire and forget (no await needed)
+              // Persist GPS to DB on every fix — customer track page polls this
               if (r?.id) {
-                void supabase.from("riders").update({ last_lat: lat, last_lng: lng }).eq("id", r.id);
+                // Write to riders table (requires last_lat, last_lng columns)
+                supabase.from("riders").update({ last_lat: lat, last_lng: lng }).eq("id", r.id).then(() => {}).catch(() => {});
+                // Also write to active order rows as rider_lat/rider_lng (fallback — always works)
                 const ao2 = activeOrderRef.current;
-                const ids: string[] = (ao2 as any)?.all_ids?.length
-                  ? (ao2 as any).all_ids
-                  : ao2?.id ? [ao2.id] : [];
-                ids.forEach(oid => {
-                  void supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", oid);
-                });
+                if (ao2?.all_ids?.length) {
+                  for (const oid of ao2.all_ids) {
+                    supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", oid).then(()=>{}).catch(()=>{});
+                  }
+                } else if (ao2?.id) {
+                  supabase.from("orders").update({ rider_lat: lat, rider_lng: lng }).eq("id", ao2.id).then(()=>{}).catch(()=>{});
+                }
               }
             },
             err => setGpsErr(err.code===1?"Location permission denied":"GPS error"),
