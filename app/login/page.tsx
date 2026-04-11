@@ -1,6 +1,6 @@
 "use client";
 import { supabase } from "../../lib/supabase";
-import { useState } from "react";
+import { useState, useEffect, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 
@@ -30,6 +30,13 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #F4F6FB; }
 
 export default function RiderLogin() {
   const router = useRouter();
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) router.replace("/delivery");
+    });
+  }, []);
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const fullPhone = "+91" + phone.replace(/\D/g, "");
