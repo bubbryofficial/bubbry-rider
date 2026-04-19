@@ -133,7 +133,17 @@ export default function RiderDelivery() {
   const order = orders[activeIdx] || null;
 
   useEffect(() => {
-    const saved = localStorage.getItem("bubbry_rider");
+    // Try localStorage first, then cookie fallback
+    let saved = localStorage.getItem("bubbry_rider");
+    if (!saved) {
+      // Try reading from cookie
+      const match = document.cookie.split("; ").find(row => row.startsWith("bubbry_rider="));
+      if (match) {
+        saved = decodeURIComponent(match.split("=").slice(1).join("="));
+        // Restore to localStorage for faster future reads
+        localStorage.setItem("bubbry_rider", saved);
+      }
+    }
     if (!saved) { router.replace("/login"); return; }
     const r = JSON.parse(saved);
     setRider(r);
@@ -513,7 +523,12 @@ export default function RiderDelivery() {
     } catch(e:any){alert("Error: "+e.message);setSaving(false);}
   }
 
-  function logout(){localStorage.removeItem("bubbry_rider");supabase.auth.signOut();router.replace("/login");}
+  function logout(){
+    localStorage.removeItem("bubbry_rider");
+    document.cookie = "bubbry_rider=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    supabase.auth.signOut();
+    router.replace("/login");
+  }
 
   function openDeliverModal(){setShowModal(true);setStep("otp");setOtp("");setOtpOk(false);setPFile(null);setPPrev("");setCFile(null);setCPrev("");}
 

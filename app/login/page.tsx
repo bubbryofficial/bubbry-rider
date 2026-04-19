@@ -57,7 +57,12 @@ export default function RiderLogin() {
       setLoading(false);
       return;
     }
-    // No OTP — just save rider session and go
+    // Save to cookie (persists 30 days, survives browser/app close)
+    const expires = new Date();
+    expires.setDate(expires.getDate() + 30);
+    document.cookie = "bubbry_rider=" + encodeURIComponent(JSON.stringify(riderData)) + 
+      "; expires=" + expires.toUTCString() + "; path=/; SameSite=Lax";
+    // Also save to localStorage as backup
     localStorage.setItem("bubbry_rider", JSON.stringify(riderData));
     router.push("/delivery");
     setLoading(false);
