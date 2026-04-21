@@ -493,15 +493,39 @@ export default function RiderDelivery() {
     if (!order||!pFile||!cFile) return;
     setSaving(true);
     try {
-      const base=`handoffs/${order.id}`;
-      let pUrl=null,cUrl=null;
-      const {error:pe}=await supabase.storage.from("product-images").upload(`${base}_products.jpg`,pFile,{upsert:true,contentType:"image/jpeg"});
-      if (!pe){const{data}=supabase.storage.from("product-images").getPublicUrl(`${base}_products.jpg`);pUrl=data.publicUrl;}
-      const {error:ce}=await supabase.storage.from("product-images").upload(`${base}_customer.jpg`,cFile,{upsert:true,contentType:"image/jpeg"});
-      if (!ce){const{data}=supabase.storage.from("product-images").getPublicUrl(`${base}_customer.jpg`);cUrl=data.publicUrl;}
-      for (const id of ((order as any).all_ids||[order.id])) {
-        await supabase.from("orders").update({status:"completed",delivery_otp_verified:true,handoff_photo:cUrl,product_photo:pUrl,completed_at:new Date().toISOString(),rider_id:rider?.id}).eq("id",id);
-        // Stock already deducted when shopkeeper marked order ready
+      // Convert files to base64 to send to server-side API
+      async function toBase64(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      const [handoffB64, productB64] = await Promise.all([
+        toBase64(cFile),
+        toBase64(pFile),
+      ]);
+
+      // Use server-side API route which has service role key — bypasses RLS
+      const res = await fetch("/api/complete-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderIds: (order as any).all_ids || [order.id],
+          orderId: order.id,
+          handoffPhotoBase64: handoffB64,
+          productPhotoBase64: productB64,
+          riderId: rider?.id || null,
+        }),
+      });
+
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        alert("Error saving delivery proof: " + (result.error || "Unknown error"));
+        setSaving(false);
+        return;
       }
       const cid=order.id;
       setOrders(prev=>{
