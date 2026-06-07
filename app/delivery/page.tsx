@@ -367,7 +367,7 @@ export default function RiderDelivery() {
               // Also broadcast to active order channel if exists
               const ao = activeOrderRef.current;
               if (ao?.id) {
-                supabase.channel(`rider-${ao.id}`).send({type:"broadcast",event:"pos",payload:{lat,lng}}).catch(()=>{});
+                try { supabase.channel(`rider-${ao.id}`).send({type:"broadcast",event:"pos",payload:{lat,lng}}); } catch(_) {}
               }
               // Persist GPS to DB on every fix — customer track page polls this
               if (r?.id) {
