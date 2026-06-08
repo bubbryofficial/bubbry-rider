@@ -163,6 +163,15 @@ export default function RiderDelivery() {
     if (mapReady && orders.length > 0) drawMarkers();
   }, [mapReady, activeIdx, orders.length]);
 
+  // Safety-net poll: realtime handles most updates, but if an event is missed,
+  // silently re-fetch the rider's active deliveries every 10s. fetchOrders
+  // only updates state with fresh data, so there's no spinner / no flicker.
+  useEffect(() => {
+    if (!rider) return;
+    const poll = setInterval(() => { fetchOrders(rider); }, 10000);
+    return () => clearInterval(poll);
+  }, [rider]);
+
   // Update rider marker + route whenever position changes
   useEffect(() => {
     if (!myPos || !mapRef.current) return;
@@ -280,7 +289,11 @@ export default function RiderDelivery() {
       const { data } = await supabase.from("orders")
         .select("id,group_id,status,order_type,delivery_address,delivery_instructions,delivery_lat,delivery_lng,shop_id,rider_id,amount_paid,amount_cash,payment_method,delivery_otp,delivery_otp_verified,customer_id")
         .eq("rider_id", r.id).eq("status","out_for_delivery").order("created_at",{ascending:true});
-      if (!data || data.length === 0) return;
+      if (!data || data.length === 0) {
+        // No active deliveries — clear the list (don't leave stale orders shown)
+        ordersRef.current = []; setOrders([]);
+        return;
+      }
       const seen = new Set<string>(); const list: any[] = [];
       for (const o of data) {
         const key = o.group_id || o.id; if (seen.has(key)) continue; seen.add(key);
@@ -385,7 +398,7 @@ export default function RiderDelivery() {
               }
             },
             err => setGpsErr(err.code===1?"Location permission denied":"GPS error"),
-            {enableHighAccuracy:true,maximumAge:2000,timeout:12000}
+            {enableHighAccuracy:true,maximumAge:0,timeout:15000}
           );
         }
       });
@@ -398,7 +411,7 @@ export default function RiderDelivery() {
       gpsWatch.current = navigator.geolocation.watchPosition(
         pos => { const {latitude:lat,longitude:lng}=pos.coords; setGpsErr(""); setMyPos({lat,lng}); },
         err => setGpsErr(err.code===1?"Location permission denied":"GPS error"),
-        {enableHighAccuracy:true,maximumAge:2000,timeout:12000}
+        {enableHighAccuracy:true,maximumAge:0,timeout:15000}
       );
     }
   }
