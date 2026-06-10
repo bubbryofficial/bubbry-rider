@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import BubbryPopups from "../components/BubbryPopups";
+import SessionGuard from "../components/SessionGuard";
 
 export const metadata: Metadata = { title: "Bubbry Rider", description: "Delivery rider app" };
 
@@ -37,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body>{children}<BubbryPopups /></body>
+      <body>{children}<BubbryPopups /><SessionGuard /></body>
     </html>
   );
 }

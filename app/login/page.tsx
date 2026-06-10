@@ -1,5 +1,6 @@
 "use client";
 import { supabase } from "../../lib/supabase";
+import { setCurrentSession } from "../../lib/session";
 import {useState, useEffect} from "react";
 import { useRouter } from "next/navigation";
 
@@ -64,6 +65,7 @@ export default function RiderLogin() {
       "; expires=" + expires.toUTCString() + "; path=/; SameSite=Lax";
     // Also save to localStorage as backup
     localStorage.setItem("bubbry_rider", JSON.stringify(riderData));
+    await setCurrentSession(String(riderData.id));
     router.push("/delivery");
     setLoading(false);
   }
