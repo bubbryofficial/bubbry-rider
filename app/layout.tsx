@@ -2,7 +2,25 @@ import type { Metadata } from "next";
 import BubbryPopups from "../components/BubbryPopups";
 import SessionGuard from "../components/SessionGuard";
 
-export const metadata: Metadata = { title: "Bubbry Rider", description: "Delivery rider app" };
+export const metadata: Metadata = {
+  title: "Bubbry Rider",
+  description: "Delivery rider app",
+  icons: {
+    icon: "/icon-rounded.png",
+    shortcut: "/icon-rounded.png",
+    apple: "/icon-rounded.png",
+  },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Bubbry Rider",
+  },
+};
+
+export const viewport = {
+  themeColor: "#004AAD",
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
